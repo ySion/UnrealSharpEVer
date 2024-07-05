@@ -136,6 +136,10 @@ public:
 
 		void ExportExtensionMethod(FCSScriptBuilder& Builder) const;
 
+		FString GetExtensionMethodSourceFullClassName() const;
+
+		FString GetExtensionMethodSourceClassName() const;
+
 		void ExportSignature(FCSScriptBuilder& Builder, const FString& Protection) const;
 
 		void ExportGetter(FCSScriptBuilder& Builder) const;
@@ -170,6 +174,8 @@ public:
 		FString CustomInvoke;
 		FString ParamsStringCall;
 		FString ParamsStringAPIWithDefaults;
+		FString ExtensionFunctionSourceFullClassName;
+		FString ExtensionFunctionSourceClassName;
 		TArray<FunctionOverload> Overloads;
 	};
 

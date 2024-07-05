@@ -327,10 +327,8 @@ void FPropertyTranslator::FunctionExporter::Initialize(ProtectionMode InProtecti
 	if (SelfParameter)
 	{
 		const FPropertyTranslator& ParamHandler = Handler.PropertyHandlers.Find(SelfParameter);
-		FString ParamType = OverrideClassBeingExtended? Mapper.GetQualifiedName(OverrideClassBeingExtended) : ParamHandler.GetManagedType(SelfParameter);
-
-		ParamsStringAPI = FString::Printf(TEXT("this %s %s, "), *ParamType, *Mapper.MapParameterName(SelfParameter));
-		ParamsStringAPIWithDefaults = ParamsStringAPI;
+		ExtensionFunctionSourceClassName = OverrideClassBeingExtended ? Mapper.GetScriptClassName(OverrideClassBeingExtended) : ParamHandler.GetManagedType(SelfParameter);
+		ExtensionFunctionSourceFullClassName = OverrideClassBeingExtended? Mapper.GetQualifiedName(OverrideClassBeingExtended) : ParamHandler.GetManagedType(SelfParameter);
 	}
 
 	int ParamsProcessed = 0;
@@ -360,7 +358,7 @@ void FPropertyTranslator::FunctionExporter::Initialize(ProtectionMode InProtecti
 
 			if (SelfParameter == Parameter)
 			{
-				FString SelfParamName = Mapper.MapParameterName(SelfParameter);
+				FString SelfParamName = "this";// Mapper.MapParameterName(SelfParameter);
 				if (ParamsStringCall.IsEmpty())
 				{
 					ParamsStringCall += SelfParamName;
@@ -539,12 +537,23 @@ void FPropertyTranslator::FunctionExporter::ExportExtensionMethod(FCSScriptBuild
 	Builder.AppendLine();
 	AppendTooltip(&Function, Builder);
 	ExportDeprecation(Builder);
-	Builder.AppendLine(FString::Printf(TEXT("%s%s %s(%s)"), *Modifiers, *Handler.GetManagedType(ReturnProperty), *CSharpMethodName, *ParamsStringAPIWithDefaults));
+	FString Temp = Modifiers.Replace(TEXT("static "), TEXT(""));
+	Builder.AppendLine(FString::Printf(TEXT("%s%s %s(%s)"), *Temp, *Handler.GetManagedType(ReturnProperty), *CSharpMethodName, *ParamsStringAPIWithDefaults));
 	Builder.OpenBrace();
 	FString ReturnStatement = ReturnProperty ? TEXT("return ") : TEXT("");
 	UClass* OriginalClass = Function.GetOuterUClass();
 	Builder.AppendLine(FString::Printf(TEXT("%s%s.%s(%s);"), *ReturnStatement, *GetScriptNameMapper().GetQualifiedName(OriginalClass), *CSharpMethodName, *ParamsStringCall));
 	Builder.CloseBrace();
+}
+
+FString FPropertyTranslator::FunctionExporter::GetExtensionMethodSourceFullClassName() const
+{
+	return ExtensionFunctionSourceFullClassName;
+}
+
+FString FPropertyTranslator::FunctionExporter::GetExtensionMethodSourceClassName() const
+{
+	return ExtensionFunctionSourceClassName;
 }
 
 void FPropertyTranslator::FunctionExporter::ExportSignature(FCSScriptBuilder& Builder, const FString& Protection) const
@@ -755,10 +764,35 @@ void FPropertyTranslator::ExportExtensionMethod(FCSScriptBuilder& Builder, const
 	{
 		Builder.BeginWithEditorOnlyBlock();
 	}
+
 	
 	FunctionExporter Exporter(*this, ExtensionMethod);
+
+	FString ClassName = Exporter.GetExtensionMethodSourceClassName();
+	FString FullName = Exporter.GetExtensionMethodSourceFullClassName();
+	bool HasNameSpace = false;
+	if (FullName.Len() > (ClassName.Len() + 1)) 
+	{
+		FullName.RemoveAt(FullName.Len() - ClassName.Len() - 1, ClassName.Len() + 1);
+		HasNameSpace = true;
+		Builder.AppendLine(FString::Printf(TEXT("namespace %s"), *FullName));
+		Builder.OpenBrace();
+	}
+
+	FString ClassFullHead = FString::Printf(TEXT("public partial class %s"), *ClassName);
+
+	Builder.AppendLine(ClassFullHead);
+	Builder.OpenBrace();
+
 	Exporter.ExportOverloads(Builder);
 	Exporter.ExportExtensionMethod(Builder);
+
+	Builder.CloseBrace();
+
+	if (HasNameSpace) 
+	{
+		Builder.CloseBrace();
+	}
 
 	if (bIsEditorOnly)
 	{

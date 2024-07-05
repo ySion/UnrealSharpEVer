@@ -232,15 +232,16 @@ void FCSGenerator::GenerateExtensionMethodsForPackage(const UPackage* Package)
 	{
 		FCSScriptBuilder Builder(FCSScriptBuilder::IndentType::Spaces);
 		FString ClassName = FString::Printf(TEXT("%sExtensions"), *Module.GetModuleName().ToString());
-		Builder.GenerateScriptSkeleton(Module.GetNamespace());
-		Builder.DeclareType("static class", ClassName, "", false);
+		//Builder.GenerateScriptSkeleton(Module.GetNamespace());
+		//Builder.DeclareType("static class", ClassName, "", false);
 		
 		for (const ExtensionMethod& Method : *FoundExtensionMethods)
 		{
+			
 			PropertyTranslatorManager->Find(Method.Function).ExportExtensionMethod(Builder, Method);
 		}
 
-		Builder.CloseBrace();
+		//Builder.CloseBrace();
 		SaveTypeGlue(Package, ClassName, Builder);
 	}
 }
